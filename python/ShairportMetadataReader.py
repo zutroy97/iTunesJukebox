@@ -52,32 +52,9 @@ class ShairportMetadataReader:
     def _setSessionId(self, value):
         self._sessionId = value
 
-    def queue_by_persistent_id(self, persistentId):
-        try:
-            if persistentId == None :
-                logging.debug("queue_by_persistent_id: No PersistantId specified.")
-                return False
-            if self.get_session_id() == None:
-                logging.debug("queue_by_persistent_id: SessionId not set.")
-                return False
-            if self.get_active_remote_token() == None:
-                logging.debug("queue_by_persistent_id: Active-Remote token not set.")
-                return False
-            headers = {"Active-Remote": self.get_active_remote_token()}
-            # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
-            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.get_session_id())
-            #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
-
-            result = self._make_iTunes_request(url, None, headers)
-            if result == None:
-                logging.warn("QueueSongByPersistentId: Unable to queue persistentId {}.".format(persistentId))
-                return False
-        except Exception as err:
-            logging.error("QueueSongByPersistentId: Exception {}.".format(err))
-            return False
-        return True
-
-    def refresh_iTunes_session_id(self):
+    def refresh_iTunes_session_id(self, force=False):
+        if (force == False ) and (self.get_session_id() != None):
+            return
         result = self._make_iTunes_request("login", { "pairing-guid" : "0x0000000000000001"})
         if result == None:
             logging.debug("Unable to make session request.")
@@ -124,8 +101,6 @@ class ShairportMetadataReader:
             return None
         return "http://{}:{}/".format(ip, port)
 
-
-
     def get_port(self):
         return self._get_value('"ssnc" "dapo"')
 
@@ -152,7 +127,7 @@ class ShairportMetadataReader:
         while keepOnKeepingOn:
             try:
                 for line in self._read_pipe(["/home/pi/pipe-metadata.sh"]):
-                    print(line)
+                    #logging.debug("ShairportMetaReader received line: {}".format(line))
                     kvp = self._get_key_value(line)
                     if kvp:
                         #logging.debug("PUBLISH {} : {}".format(kvp.key, kvp.value))
@@ -185,8 +160,8 @@ class ShairportMetadataReader:
 
 def _testInfoAvailableCallback(itunes, key, value):
     print("Info Update: {0} = {1}".format(key, value))
-    if key == 'Title':
-        itunes.queue_by_persistent_id(0x9E73AFE715844D08)
+    # if key == 'Title':
+    #     itunes.queue_by_persistent_id(0x9E73AFE715844D08)
 
 def _test():
     p = ShairportMetadataReader()

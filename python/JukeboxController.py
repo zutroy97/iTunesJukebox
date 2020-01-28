@@ -4,8 +4,7 @@
 import time
 import threading
 import JukeboxPanelSerialDriver as jpPanel
-import iTunesPlaylist as playlist
-import ParseShairportSyncMetadata as itunesUpdateManager
+import iTunes
 import logging
 
 class JukeboxController:
@@ -14,34 +13,31 @@ class JukeboxController:
         
         self._jp = jpPanel.JukeboxPanelSerialDriver()
         self._jp.buttonPushedCallback = self._panelButtonPressedCallback
-        self._setupPlaylistFetchThread()
-        self._setupITunesManagerThread()
+        self._instance_itunes = iTunes.iTunes('scott')
+
+        self._setup_playlist_fetch_thread()
+        self._setup_metadata_reader_thread()
         self._jp.Off()
 
         self._bufferJBSelection = ''
 
-    def _setupPlaylistFetchThread(self):
-        self._playlistManager = playlist.iTunesPlaylist('scott')
-        self._threadPlaylistManager = threading.Thread(target=self._threadPlaylistManagerLoop, daemon=True)
-        self._threadPlaylistManager.start()
+    # Creates/Starts a thread to pull events from shairport_sync
+    def _setup_metadata_reader_thread(self):
+        self._instance_itunes.reader.info_available_callback = self._iTunesUpdateCallback
+        threading.Thread(target=self._instance_itunes.reader.loop, daemon=True).start()
 
-    def _startItunes(self):
-        while True:
-            result = self._playlistManager.StartITunes()
-            if result == True:
-                logging.debug('iTunes successfully started.')
-                break
-            else:
-                logging.warning("iTunesStart ERROR. {}".format(self._playlistManager.LastError))
-            time.sleep(10) # Try again
-    
+    # Starts thread to fetch playlists every so often
+    def _setup_playlist_fetch_thread(self):
+        threading.Thread(target=self._threadPlaylistManagerLoop, daemon=True).start()
+
+    # Every so often, fetch the jukebox playlist
     def _threadPlaylistManagerLoop(self):
         while True:
             refresh = 30 * 60
-            self._playlistManager.FetchPlaylistFromItunes()
-            if (self._playlistManager.LastError == ''):
+            result = self._instance_itunes.fetch_playlist()
+            if result:
                 #logging.debug("Playlist Fetch successful.")
-                self._playlist = self._playlistManager.GetPlaylist()
+                self._playlist = self._instance_itunes.get_playlist()
                 self._updateDisplayForCurrentSong()
             else:
                 logging.debug("Playlist Fetch failed.")
@@ -49,15 +45,19 @@ class JukeboxController:
                 self._playlist = {}
             logging.debug("Playlist refresh in {} seconds".format(refresh))
             time.sleep(refresh)
-            
-    def _setupITunesManagerThread(self):
-        self._iTunesUpdateManager = itunesUpdateManager.ParseShairportSyncMetadata()
-        self._iTunesUpdateManager.InfoAvailableCallback = self._iTunesUpdateCallback
-        self._threadITunesUpdateManager = threading.Thread(target=self._iTunesUpdateManager.loop, daemon=True)
-        self._threadITunesUpdateManager.start()
+
+    def _startItunes(self):
+        while True:
+            result = self._instance_itunes.start_itunes()
+            if result == True:
+                logging.debug('iTunes successfully started.')
+                break
+            else:
+                logging.warning("iTunesStart ERROR. {}".format(self._instance_itunes.last_error))
+            time.sleep(10) # Try again
 
     def _updateDisplayForCurrentSong(self):
-        persistentId = self._iTunesUpdateManager.GetITunesTrackPersistentId()
+        persistentId = self._instance_itunes.reader.get_track_persistent_id()
         self._updateDisplayForSongPersistentId(persistentId)
 
     def _updateDisplayForSongPersistentId(self, persistentId):
@@ -95,7 +95,7 @@ class JukeboxController:
             item = [key for key in self._playlist.keys() if self._playlist[key]['Index']== selectedIndex]
             if len(item) == 1:
                 logging.debug('selecting song with persistentId: {}'.format(item[0]))
-                self._iTunesUpdateManager.QueueSongByPersistentId(int(item[0], 16))
+                self._instance_itunes.queue_by_persistent_id(int(item[0], 16))
             self._bufferJBSelection = ''
             self._jp.Led1Set(False)
             self._jp.Clear4()

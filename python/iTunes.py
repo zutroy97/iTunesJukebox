@@ -9,6 +9,7 @@ import time
 import re
 import urllib.parse as url_parse
 import urllib.request as url_request
+import ShairportMetadataReader as metareader
 
 # Get the a playlist from iTunes
 
@@ -25,17 +26,38 @@ class iTunes:
         self._playlist = {}
         self._lock = threading.Lock()
         self.last_error = ''
+        self.reader = metareader.ShairportMetadataReader()
+        #self._setup_metadatareader_thread()
 
-        self._patternGetKeyValue = re.compile(r'(.*?)\:\s*\"?(.*)\"',re.A)
-        self.InfoAvailableCallback = None
-        self._storedFields = {}
-        self._popen = None
-        self._lock = threading.Lock()
-        self._sessionId = None
+    # def _setup_metadatareader_thread(self):
+    #     #self.reader.info_available_callback = self._iTunesUpdateCallback
+    #     self._threadreader = threading.Thread(target=self.reader.loop, daemon=True)
+    #     self._threadreader.start()
 
+    def queue_by_persistent_id(self, persistentId):
+        try:
+            if persistentId == None :
+                logging.debug("queue_by_persistent_id: No PersistantId specified.")
+                return False
+            if self.reader.get_session_id() == None:
+                logging.debug("queue_by_persistent_id: SessionId not set.")
+                return False
+            if self.reader.get_active_remote_token() == None:
+                logging.debug("queue_by_persistent_id: Active-Remote token not set.")
+                return False
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
+            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.reader.get_session_id())
+            #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
 
-
-########################
+            result = self.reader._make_iTunes_request(url, None, headers)
+            if result == None:
+                logging.warn("queue_by_persistent_id: Unable to queue persistentId {}.".format(persistentId))
+                return False
+        except Exception as err:
+            logging.error("queue_by_persistent_id: Exception {}.".format(err))
+            return False
+        return True
 
     def start_itunes(self):
         logging.debug("Preparing to start iTunes.")
@@ -66,7 +88,8 @@ class iTunes:
             stdout, stderr = process.communicate()
             if stderr:
                 self.last_error = stderr.decode("utf-8")
-                logging.warning("Got Error fetching playlist. {}".format(self.LastError))
+                logging.warning("Got Error fetching playlist. {}".format(self.last_error))
+                return False
             if stdout:
                 logging.debug("received json payload:" )
                 utf8 = stdout.decode("utf-8")
@@ -74,8 +97,10 @@ class iTunes:
                 self._set_playlist(json.loads(utf8))
                 logging.debug("fetch complete")
                 self.last_error = ''
+                return True
         except Exception as err:
             self.last_error = "Exception: {}".format(err)
+            return False
 
     def _set_playlist(self, playlist):
         with self._lock:
@@ -85,16 +110,27 @@ class iTunes:
         with self._lock:
             return copy.deepcopy(self._playlist)
 
+def _testInfoAvailableCallback(itunes, key, value):
+    print("Info Update: {0} = {1}".format(key, value))
+    if key == 'Title':
+        f.queue_by_persistent_id(0x9E73AFE715844D08)
+
 def _testFetch():
     format = "%(asctime)s: %(message)s"
     logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
     logging.getLogger().setLevel(logging.DEBUG)
-    f = iTunes('scott')
-    f.fetch_playlist('FirstDances')
+
+    f.fetch_playlist('Any Name Does not matter....Always Fetches Jukebox')
 
     pl = f.get_playlist()
     for k in pl:
         print("\t{} : Index: {} Title: {}".format(k, str(pl[k]['Index']), pl[k]['Name']))
+    f.reader.info_available_callback = _testInfoAvailableCallback
+    # Do nothing, let the metadata reader show messages
+    while True:
+        f.reader.loop()
+        time.sleep(.250)
 
 if __name__ == '__main__':
+    f = iTunes('scott')
     _testFetch()
