@@ -16,22 +16,22 @@ class KeyValuePair:
     def __str__(self):
         return "{}: {}".format(self.key, self.value)
 
-class ParseShairportSyncMetadata:
+class ShairportMetadataReader:
     def __init__(self):
         self._patternGetKeyValue = re.compile(r'(.*?)\:\s*\"?(.*)\"',re.A)
-        self.InfoAvailableCallback = None
-        self._storedFields = {}
+        self.info_available_callback = None
+        self._stored_fields = {}
         self._popen = None
         self._lock = threading.Lock()
         self._sessionId = None
 
-    def execute(self, cmd):
+    def _read_pipe(self, cmd):
         self._popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
         yield 'parser_event: "Pipe Open"'
         for stdout_line in iter(self._popen.stdout.readline, ""):
             yield stdout_line 
 
-    def _getKeyValue(self, line):
+    def _get_key_value(self, line):
         m = self._patternGetKeyValue.search(line)
         if m:
             #print("FOUND {} : {}".format(m.group(1), m.group(2)))
@@ -40,35 +40,35 @@ class ParseShairportSyncMetadata:
         else:
             return None
 
-    def _setFieldIfKeyMatches(self, key, kvp):
+    def _set_field_if_key_matches(self, key, kvp):
         if key != kvp.key:
             return
         with self._lock:
-            self._storedFields[key] = kvp.value
+            self._stored_fields[key] = kvp.value
         
-    def GetSessionId(self):
+    def get_session_id(self):
         return self._sessionId
 
     def _setSessionId(self, value):
         self._sessionId = value
 
-    def QueueSongByPersistentId(self, persistentId):
+    def queue_by_persistent_id(self, persistentId):
         try:
             if persistentId == None :
-                logging.debug("QueueSongByPersistentId: No PersistantId specified.")
+                logging.debug("queue_by_persistent_id: No PersistantId specified.")
                 return False
-            if self.GetSessionId() == None:
-                logging.debug("QueueSongByPersistentId: SessionId not set.")
+            if self.get_session_id() == None:
+                logging.debug("queue_by_persistent_id: SessionId not set.")
                 return False
-            if self.GetITunesActiveRemoteToken() == None:
-                logging.debug("QueueSongByPersistentId: Active-Remote token not set.")
+            if self.get_active_remote_token() == None:
+                logging.debug("queue_by_persistent_id: Active-Remote token not set.")
                 return False
-            headers = {"Active-Remote": self.GetITunesActiveRemoteToken()}
+            headers = {"Active-Remote": self.get_active_remote_token()}
             # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
-            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.GetSessionId())
-            logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
+            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.get_session_id())
+            #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
 
-            result = self._makeITunesRequest(url, None, headers)
+            result = self._make_iTunes_request(url, None, headers)
             if result == None:
                 logging.warn("QueueSongByPersistentId: Unable to queue persistentId {}.".format(persistentId))
                 return False
@@ -77,23 +77,23 @@ class ParseShairportSyncMetadata:
             return False
         return True
 
-    def RefreshITunesSessionId(self):
-        result = self._makeITunesRequest("login", { "pairing-guid" : "0x0000000000000001"})
+    def refresh_iTunes_session_id(self):
+        result = self._make_iTunes_request("login", { "pairing-guid" : "0x0000000000000001"})
         if result == None:
             logging.debug("Unable to make session request.")
             return False
         d = iTunesDecoder.DacpDecoder()
         dacpResult = d.decode(list(result))
         sessionId = dacpResult['mlog']['mlid']
-        logging.debug("RefreshITunesSessionId: SessionId = {0}".format(sessionId))
+        logging.debug("refresh_iTunes_session_id: SessionId = {0}".format(sessionId))
         self._setSessionId(sessionId)
 
-    def _makeITunesRequest(self, path, params=None, headers = None):
-        url = self.GetITunesBaseUrl()
+    def _make_iTunes_request(self, path, params=None, headers = None):
+        url = self.get_iTunes_base_url()
         urlParams = ''
         req = None
         if url == None:
-            logging.debug("_makeITunesRequest - Don't know iTunes URL")
+            logging.debug("_make_iTunes_request - Don't know iTunes URL")
             return None
         if params == None:
             url = "{0}{1}".format(url, path)
@@ -104,7 +104,7 @@ class ParseShairportSyncMetadata:
         if headers != None:
             req.headers = headers
         ### Uncomment for advanced logging of requests/responses from iTunes
-        # logging.debug("_makeITunesRequest: url = {}".format(req.full_url))
+        # logging.debug("_make_iTunes_request: url = {}".format(req.full_url))
         # handler = urllib.request.HTTPHandler(debuglevel=10)
         # opener = urllib.request.build_opener(handler)
         # return opener.open(req).read()
@@ -113,63 +113,63 @@ class ParseShairportSyncMetadata:
             results = response.read()
         return results
 
-    def GetITunesBaseUrl(self):
-        ip = self.GetITunesIpAddress()
-        port = self.GetITunesPortNumber()
+    def get_iTunes_base_url(self):
+        ip = self.get_ip_address()
+        port = self.get_port()
         if ip == None :
-            logging.debug("GetITunesBaseUrl - No ip address found")
+            logging.debug("get_iTunes_base_url - No ip address found")
             return None
         if port == None :
-            logging.debug("GetITunesBaseUrl - No port address found")
+            logging.debug("get_iTunes_base_url - No port address found")
             return None
         return "http://{}:{}/".format(ip, port)
 
 
 
-    def GetITunesPortNumber(self):
-        return self._getValueFromStoredFields('"ssnc" "dapo"')
+    def get_port(self):
+        return self._get_value('"ssnc" "dapo"')
 
-    def GetITunesTrackPersistentId(self):
-        return self._getValueFromStoredFields('Persistent ID')
+    def get_track_persistent_id(self):
+        return self._get_value('Persistent ID')
 
-    def GetITunesDacpId(self):
-        return self._getValueFromStoredFields('"ssnc" "daid"')
+    def get_dacp_id(self):
+        return self._get_value('"ssnc" "daid"')
 
-    def GetITunesActiveRemoteToken(self):
-        return self._getValueFromStoredFields('"ssnc" "acre"')
+    def get_active_remote_token(self):
+        return self._get_value('"ssnc" "acre"')
 
-    def GetITunesIpAddress(self):
-        return self._getValueFromStoredFields("Client's IP")
+    def get_ip_address(self):
+        return self._get_value("Client's IP")
 
-    def _getValueFromStoredFields(self, key):
+    def _get_value(self, key):
         with self._lock:
-            if key in self._storedFields:
-                return self._storedFields[key]
+            if key in self._stored_fields:
+                return self._stored_fields[key]
             return None
 
     def loop(self):
         keepOnKeepingOn = 1
         while keepOnKeepingOn:
             try:
-                for line in self.execute(["/home/pi/pipe-metadata.sh"]):
-                    #print(line, end="")
-                    kvp = self._getKeyValue(line)
+                for line in self._read_pipe(["/home/pi/pipe-metadata.sh"]):
+                    print(line)
+                    kvp = self._get_key_value(line)
                     if kvp:
                         #logging.debug("PUBLISH {} : {}".format(kvp.key, kvp.value))
-                        self._setFieldIfKeyMatches('"ssnc" "dapo"', kvp) # iTunes Port Number
-                        self._setFieldIfKeyMatches('"ssnc" "daid"', kvp) # DACP-ID 
-                        self._setFieldIfKeyMatches('"ssnc" "acre"', kvp) 
-                        self._setFieldIfKeyMatches("Client's IP", kvp) 
+                        self._set_field_if_key_matches('"ssnc" "dapo"', kvp) # iTunes Port Number
+                        self._set_field_if_key_matches('"ssnc" "daid"', kvp) # DACP-ID 
+                        self._set_field_if_key_matches('"ssnc" "acre"', kvp) 
+                        self._set_field_if_key_matches("Client's IP", kvp) 
                         if kvp.key == 'Persistent ID':
                             kvp.value = kvp.value.upper()
-                            self._setFieldIfKeyMatches('Persistent ID', kvp)
+                            self._set_field_if_key_matches('Persistent ID', kvp)
                         elif kvp.key == "Client's IP":
-                            self.RefreshITunesSessionId()
+                            self.refresh_iTunes_session_id()
                         elif kvp.key == '"ssnc" "dapo"':
-                            self.RefreshITunesSessionId()
+                            self.refresh_iTunes_session_id()
 
-                        if self.InfoAvailableCallback:
-                            self.InfoAvailableCallback(self, kvp.key, kvp.value)
+                        if self.info_available_callback:
+                            self.info_available_callback(self, kvp.key, kvp.value)
                     else:
                         logging.debug("No match for line " + line)
 
@@ -186,17 +186,17 @@ class ParseShairportSyncMetadata:
 def _testInfoAvailableCallback(itunes, key, value):
     print("Info Update: {0} = {1}".format(key, value))
     if key == 'Title':
-        itunes.QueueSongByPersistentId(0x9E73AFE715844D08)
+        itunes.queue_by_persistent_id(0x9E73AFE715844D08)
 
 def _test():
-    p = ParseShairportSyncMetadata()
-    p.InfoAvailableCallback = _testInfoAvailableCallback
+    p = ShairportMetadataReader()
+    p.info_available_callback = _testInfoAvailableCallback
     p.loop()
 
 # def _testInfoAvailableCallback_Session(itunes, key, value):
 #     print("Info Update: {0} = {1}".format(key, value))
 #     if key == "Client's IP" or key == "":
-#         self.RefreshITunesSessionId()
+#         self.refresh_iTunes_session_id()
 
 # def _testGettingSession:
 #     p = ParseShairportSyncMetadata()

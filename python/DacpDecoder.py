@@ -9,28 +9,28 @@ class DacpDecoder:
         self.rebinary = re.compile('[^\x20-\x7e]')
         self.result = {}
 
-    def format(self, c):
+    def _format(self, c):
         if ord(c) >= 128:
             return "(byte)0x%02x"%ord(c)
         else:
             return "0x%02x"%ord(c)
 
-    def read(self, queue, size):
+    def _read(self, queue, size):
         pull = bytearray(queue[0:size])
         del queue[0:size]
         return pull
 
-    def ashex(self,s):
+    def _ashex(self,s):
         x =  ''.join(["{0:02x}".format(c) for c in s ])
         return x
 
-    def asbyte(self, s):
+    def _asbyte(self, s):
         return struct.unpack('>B', s)[0]
     
-    def asint(self, s): 
+    def _asint(self, s): 
         return struct.unpack('>I', s)[0]
     
-    def aslong(self, s): 
+    def _aslong(self, s): 
         return struct.unpack('>Q', s)[0]
 
     def decode(self, message):
@@ -41,9 +41,9 @@ class DacpDecoder:
         result = {}
         while handle >= 8:
             # read word data type and length
-            ptype = self.read(raw, 4).decode()
-            x = self.read(raw, 4)
-            plen = self.asint(x)
+            ptype = self._read(raw, 4).decode()
+            x = self._read(raw, 4)
+            plen = self._asint(x)
             #print("ptype: {} plen: {}".format(ptype, plen))
             handle -= 8 + plen
             
@@ -54,9 +54,9 @@ class DacpDecoder:
                 continue
             
             # read and parse data
-            pdata = self.read(raw, plen)
-            nice = "{}".format(self.ashex(pdata))
-            result[ptype] = self.asint(pdata)
+            pdata = self._read(raw, plen)
+            nice = "{}".format(self._ashex(pdata))
+            result[ptype] = self._asint(pdata)
 
             # if plen == 1:
             #     nice = "{} == {}".format(self.ashex(pdata), self.asbyte(pdata))

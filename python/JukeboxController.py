@@ -8,7 +8,7 @@ import iTunesPlaylist as playlist
 import ParseShairportSyncMetadata as itunesUpdateManager
 import logging
 
-class JukeboxMainController:
+class JukeboxController:
     def __init__(self):
         self._playlist = {}
         
@@ -150,7 +150,7 @@ def _testPlaylistFetch():
         print("Got an error fetching the playlist. {}".format(plManager.LastError))
 
 def start():
-    controller = JukeboxMainController()
+    controller = JukeboxController()
     mainThread = threading.Thread(target=controller.loop, daemon=False)
     mainThread.start()
 
