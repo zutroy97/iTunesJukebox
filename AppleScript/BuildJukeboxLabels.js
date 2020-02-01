@@ -7,7 +7,7 @@
 var app = Application.currentApplication();
 app.includeStandardAdditions = true;
 
-var itunes = Application('iTunes');
+var itunes = Application('Music');
 itunes.includeStandardAdditions = true;
 
 var safari = Application("Safari");

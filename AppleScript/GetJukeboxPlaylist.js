@@ -4,7 +4,6 @@
 
 // Dumps the Jukebox Playlist as a dictonary of PersistentId as the key
 // and an object containing info about the tracks in JSON format.
-//var itunes = Application('iTunes');
 var itunes = Application('Music');
 itunes.includeStandardAdditions = true;
 

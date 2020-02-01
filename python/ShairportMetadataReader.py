@@ -66,12 +66,19 @@ class ShairportMetadataReader:
         self._setSessionId(sessionId)
 
     def _make_iTunes_request(self, path, params=None, headers = None):
+        if persistentId == None :
+            logging.debug("queue_by_persistent_id: No PersistantId specified.")
+            return False
+        if self.reader.get_active_remote_token() == None:
+            logging.debug("queue_by_persistent_id: Active-Remote token not set.")
+            return False
         url = self.get_iTunes_base_url()
-        urlParams = ''
-        req = None
         if url == None:
             logging.debug("_make_iTunes_request - Don't know iTunes URL")
-            return None
+            return None        
+        urlParams = ''
+        req = None
+
         if params == None:
             url = "{0}{1}".format(url, path)
         else:

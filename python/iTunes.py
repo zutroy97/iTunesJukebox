@@ -28,17 +28,40 @@ class iTunes:
         self.last_error = ''
         self.reader = metareader.ShairportMetadataReader()
 
+    def control_play_pause(self):
+        try:
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            url = "ctrl-int/1/playpause"
+            result = self.reader._make_iTunes_request(url, None, headers)
+        except Exception as err:
+            logging.error("play_pause: Exception {}".format(err))
+            return False
+        return True
+
+    def control_next(self):
+        try:
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            url = "ctrl-int/1/nextitem"
+            result = self.reader._make_iTunes_request(url, None, headers)
+        except Exception as err:
+            logging.error("play_pause: Exception {}".format(err))
+            return False
+        return True        
+
+    def control_prev(self):
+        try:
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            url = "ctrl-int/1/previtem"
+            result = self.reader._make_iTunes_request(url, None, headers)
+        except Exception as err:
+            logging.error("play_pause: Exception {}".format(err))
+            return False
+        return True  
+
     def queue_by_persistent_id(self, persistentId):
         try:
-            if persistentId == None :
-                logging.debug("queue_by_persistent_id: No PersistantId specified.")
-                return False
-            if self.reader.get_active_remote_token() == None:
-                logging.debug("queue_by_persistent_id: Active-Remote token not set.")
-                return False
             headers = {"Active-Remote": self.reader.get_active_remote_token()}
             # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
-            # url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.reader.get_session_id())
             url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3".format(persistentId)
             #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
 

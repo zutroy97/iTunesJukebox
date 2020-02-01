@@ -81,6 +81,8 @@ class JukeboxController:
 
     def _panelButtonPressedCallback(self, buttonValue):
         #logging.debug("Got button press '{}' from jukebox keypad.". format(buttonValue))
+        if buttonValue == 'P':
+            return # Don't do anything with the P button for now.
         self._bufferJBSelection = self._bufferJBSelection + buttonValue
         if buttonValue == 'R':
             self._bufferJBSelection = ''
@@ -91,11 +93,19 @@ class JukeboxController:
         self._jp.Write4(self._bufferJBSelection)
 
         if len(self._bufferJBSelection) == 3:
-            selectedIndex = int(self._bufferJBSelection) - 100
-            item = [key for key in self._playlist.keys() if self._playlist[key]['Index']== selectedIndex]
-            if len(item) == 1:
-                logging.debug('selecting song with persistentId: {}'.format(item[0]))
-                self._instance_itunes.queue_by_persistent_id(int(item[0], 16))
+            index = int(self._bufferJBSelection)
+            if index == 987:
+                self._instance_itunes.control_prev()
+            elif index == 989:
+                self._instance_itunes.control_play_pause()
+            elif index == 999:
+                self._instance_itunes.control_next()
+            else:
+                selectedIndex = index - 100
+                item = [key for key in self._playlist.keys() if self._playlist[key]['Index']== selectedIndex]
+                if len(item) == 1:
+                    logging.debug('selecting song with persistentId: {}'.format(item[0]))
+                    self._instance_itunes.queue_by_persistent_id(int(item[0], 16))
             self._bufferJBSelection = ''
             self._jp.Led1Set(False)
             self._jp.Clear4()
