@@ -138,10 +138,10 @@ class ShairportMetadataReader:
                         if kvp.key == 'Persistent ID':
                             kvp.value = kvp.value.upper()
                             self._set_field_if_key_matches('Persistent ID', kvp)
-                        elif kvp.key == "Client's IP":
-                            self.refresh_iTunes_session_id()
-                        elif kvp.key == '"ssnc" "dapo"':
-                            self.refresh_iTunes_session_id()
+                        # elif kvp.key == "Client's IP":
+                        #     self.refresh_iTunes_session_id()
+                        # elif kvp.key == '"ssnc" "dapo"':
+                        #     self.refresh_iTunes_session_id()
 
                         if self.info_available_callback:
                             self.info_available_callback(self, kvp.key, kvp.value)

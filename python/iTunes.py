@@ -27,27 +27,19 @@ class iTunes:
         self._lock = threading.Lock()
         self.last_error = ''
         self.reader = metareader.ShairportMetadataReader()
-        #self._setup_metadatareader_thread()
-
-    # def _setup_metadatareader_thread(self):
-    #     #self.reader.info_available_callback = self._iTunesUpdateCallback
-    #     self._threadreader = threading.Thread(target=self.reader.loop, daemon=True)
-    #     self._threadreader.start()
 
     def queue_by_persistent_id(self, persistentId):
         try:
             if persistentId == None :
                 logging.debug("queue_by_persistent_id: No PersistantId specified.")
                 return False
-            if self.reader.get_session_id() == None:
-                logging.debug("queue_by_persistent_id: SessionId not set.")
-                return False
             if self.reader.get_active_remote_token() == None:
                 logging.debug("queue_by_persistent_id: Active-Remote token not set.")
                 return False
             headers = {"Active-Remote": self.reader.get_active_remote_token()}
             # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
-            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.reader.get_session_id())
+            # url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3&session-id={1}".format(persistentId, self.reader.get_session_id())
+            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3".format(persistentId)
             #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
 
             result = self.reader._make_iTunes_request(url, None, headers)
@@ -62,7 +54,7 @@ class iTunes:
     def start_itunes(self):
         logging.debug("Preparing to start iTunes.")
         try:
-            process = subprocess.Popen(['ssh', self._sshConnectionName, 'osascript', '~/Documents/Jukebox/JukeboxItunesStartup.scpt' ], stdout=subprocess.PIPE ,stderr=subprocess.PIPE) 
+            process = subprocess.Popen(['ssh', self._sshConnectionName, 'osascript', '~/Documents/code/PyJukebox/AppleScript/JukeboxItunesStartup.scpt' ], stdout=subprocess.PIPE ,stderr=subprocess.PIPE) 
             stdout, stderr = process.communicate()
             if stderr:
                 self.last_error = stderr.decode("utf-8")
@@ -84,7 +76,7 @@ class iTunes:
         self._set_playlist({}) # Clear Playlist
         logging.debug("Preparing to open ssh to fetch playlist {}".format(playlist))
         try:
-            process = subprocess.Popen(['ssh', self._sshConnectionName, 'osascript', '-l', 'JavaScript', '/Users/simonbs/Documents/code/PyJukebox/AppleScript/GetJukeboxPlaylist.js' ], stdout=subprocess.PIPE ,stderr=subprocess.PIPE)        
+            process = subprocess.Popen(['ssh', self._sshConnectionName, 'osascript', '-l', 'JavaScript', '~/Documents/code/PyJukebox/AppleScript/GetJukeboxPlaylist.js' ], stdout=subprocess.PIPE ,stderr=subprocess.PIPE)        
             stdout, stderr = process.communicate()
             if stderr:
                 self.last_error = stderr.decode("utf-8")
