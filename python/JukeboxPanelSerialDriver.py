@@ -14,7 +14,7 @@ class JukeboxPanelSerialDriver:
         self._display4Line = 0
         self._led0State = False
         self._led1State = False
-        self._port = Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=None)
+        self._port = Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=None) #TODO: Make Configurable
         self._inputBuffer = ''
         self._queueSerialIn = deque([])
         """
@@ -33,6 +33,8 @@ class JukeboxPanelSerialDriver:
         logging.debug("JukeboxPanelSerialDriver destructor called.")
         if (self._port):
             if (self._port.is_open):
+                self.Write3('bye')
+                self.Write4('bye')
                 self._port.flush()
                 self._port.close()
                 logging.debug('Port flushed and closed.')

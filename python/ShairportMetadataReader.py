@@ -6,8 +6,6 @@ import logging
 import threading
 import urllib.parse
 import urllib.request
-import DacpDecoder as iTunesDecoder
-
 
 class KeyValuePair:
     def __init__(self, key, value):
@@ -52,24 +50,21 @@ class ShairportMetadataReader:
     def _setSessionId(self, value):
         self._sessionId = value
 
-    def refresh_iTunes_session_id(self, force=False):
-        if (force == False ) and (self.get_session_id() != None):
-            return
-        result = self._make_iTunes_request("login", { "pairing-guid" : "0x0000000000000001"})
-        if result == None:
-            logging.debug("Unable to make session request.")
-            return False
-        d = iTunesDecoder.DacpDecoder()
-        dacpResult = d.decode(list(result))
-        sessionId = dacpResult['mlog']['mlid']
-        logging.debug("refresh_iTunes_session_id: SessionId = {0}".format(sessionId))
-        self._setSessionId(sessionId)
+    # def refresh_iTunes_session_id(self, force=False):
+    #     if (force == False ) and (self.get_session_id() != None):
+    #         return
+    #     result = self._make_iTunes_request("login", { "pairing-guid" : "0x0000000000000001"})
+    #     if result == None:
+    #         logging.debug("Unable to make session request.")
+    #         return False
+    #     d = iTunesDecoder.DacpDecoder()
+    #     dacpResult = d.decode(list(result))
+    #     sessionId = dacpResult['mlog']['mlid']
+    #     logging.debug("refresh_iTunes_session_id: SessionId = {0}".format(sessionId))
+    #     self._setSessionId(sessionId)
 
     def _make_iTunes_request(self, path, params=None, headers = None):
-        if persistentId == None :
-            logging.debug("queue_by_persistent_id: No PersistantId specified.")
-            return False
-        if self.reader.get_active_remote_token() == None:
+        if self.get_active_remote_token() == None:
             logging.debug("queue_by_persistent_id: Active-Remote token not set.")
             return False
         url = self.get_iTunes_base_url()
