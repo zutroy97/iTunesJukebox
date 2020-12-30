@@ -46,6 +46,7 @@ class JukeboxController:
                 logging.debug("Playlist Fetch failed.")
                 refresh = 10
                 self._playlist = {}
+            self._dumpPlaylist()
             logging.debug("Playlist refresh in {} seconds".format(refresh))
             time.sleep(refresh)
 
@@ -99,14 +100,15 @@ class JukeboxController:
             return True
         else:
             logging.info("Did NOT Find PersistentId {} in playlist!".format(persistentId))
-            self._jp.Write3('')
+            self._jp.Write3('---')
             return False
 
     def _iTunesUpdateCallback(self, itunes, key, value):
         #logging.debug("Info Update: {0} = {1}".format(key, value))
         if key == 'Persistent ID':
             if value != None:
-                result = self._updateDisplayForSongPersistentId(value)
+                i = int(value,16)
+                result = self._updateDisplayForSongPersistentId("{0:0{1}X}".format(i,16)) #Add Leading Zeros
                 self._jp.Write4('')
         if key == 'parser_event':
             #logging.debug("key: {} value: {}".format(key, value))
@@ -155,9 +157,17 @@ class JukeboxController:
             self._reset_panel_display()
 
     def _dumpPlaylist(self):
-        pl = self._playlist
-        for k in pl:
-            logging.info("\t{} : Index: {} Title: {}".format(k, str(pl[k]['Index']), pl[k]['Name']))
+        with open('/tmp/playlist_dump.txt', 'w') as dumpfile:
+            pl = self._playlist
+            if pl == None:
+                dumpfile.write('playlist is None')
+                return
+            if len(pl) == 0:
+                dumpfile.write('playlist is empty (zero records)')
+                return
+            for k in pl:
+                logging.info  ("{}: PersistantId: {} Name: {}"  .format(str(pl[k]['Index']), k, pl[k]['Name']))
+                dumpfile.write("{}: PersistantId: {} Name: {}\n".format(str(pl[k]['Index']), k, pl[k]['Name']))
 
     def _reset_panel_display(self):
         self._bufferJBSelection = ''
@@ -180,8 +190,6 @@ class JukeboxController:
             self._instance_itunes.queue_by_persistent_id(int(persistId, 16))
             return True
 
-
-        
     def loop(self):
         i=0
         while True:
