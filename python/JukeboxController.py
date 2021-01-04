@@ -132,7 +132,11 @@ class JukeboxController:
 
         if len(self._bufferJBSelection) == 3:
             index = int(self._bufferJBSelection)
-            if index == 987:
+            if index == 901:
+                self._instance_itunes.control_volume_down()
+            elif index == 902:
+                self._instance_itunes.control_volume_up()
+            elif index == 987:
                 self._instance_itunes.control_prev()
             elif index == 989:
                 self._instance_itunes.control_play_pause()

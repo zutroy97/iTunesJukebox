@@ -58,11 +58,31 @@ class iTunes:
             return False
         return True  
 
+    def control_volume_up(self):
+        try:
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            url = "ctrl-int/1/volumeup"
+            result = self.reader._make_iTunes_request(url, None, headers)
+        except Exception as err:
+            logging.error("volume_up: Exception {}".format(err))
+            return False
+        return True
+
+    def control_volume_down(self):
+        try:
+            headers = {"Active-Remote": self.reader.get_active_remote_token()}
+            url = "ctrl-int/1/volumedown"
+            result = self.reader._make_iTunes_request(url, None, headers)
+        except Exception as err:
+            logging.error("volume_down: Exception {}".format(err))
+            return False
+        return True
+
     def queue_by_persistent_id(self, persistentId):
         try:
             headers = {"Active-Remote": self.reader.get_active_remote_token()}
             # We have to build up the URL here since iTunes expects a VERY specific format about the query (can't escape single quotes or colon)
-            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3".format(persistentId)
+            url="ctrl-int/1/cue?command=add&query='dmap.persistentid:0x{0:X}'&mode=3".format(persistentId) #TODO Add prepend zeros if need be
             #logging.debug("QueueSongByPersistentId headers: {} url:{}".format(headers, url))
 
             result = self.reader._make_iTunes_request(url, None, headers)
